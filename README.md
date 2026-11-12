@@ -8,6 +8,7 @@ An unlimited Wordle-style game designed **for phones first**. Play as many five-
 - Familiar six-guess gameplay, including correct handling of repeated letters.
 - 14,855 valid guesses available offline; easier common words are selected as answers.
 - Touch-friendly onscreen keyboard, physical keyboard support, and responsive layouts for phones and tablets.
+- Low-latency mobile typing: only the active five tiles update per keystroke; onscreen keys retain their DOM nodes and do not flicker or lose pressed state.
 - Installable PWA with home-screen icons, service-worker caching, and offline play after the first complete online visit.
 - Current puzzle, theme, win streak, win percentage, and guess distribution saved locally in the browser.
 - Dark and light themes, shareable emoji results, and an optional skip that does not affect statistics.
