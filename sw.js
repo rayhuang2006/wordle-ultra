@@ -1,8 +1,8 @@
 // Offline-first static assets, with network-first navigations for fresh deployments.
 // Relative URLs are deliberately used so GitHub Pages project paths work.
-const CACHE_NAME = "wordle-ultra-shell-v2";
+const CACHE_NAME = "wordle-ultra-shell-v3";
 const PRECACHE = [
-  "./", "./index.html", "./styles.css", "./app.js", "./logic.mjs",
+  "./", "./index.html", "./styles.css", "./app.js", "./logic.mjs", "./typing-row.mjs",
   "./words.txt", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png"
 ];

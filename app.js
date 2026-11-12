@@ -1,4 +1,5 @@
 import { ANSWERS, scoreGuess, nextAnswer, emptyStats, recordResult } from "./logic.mjs";
+import { updateTypingRow } from "./typing-row.mjs";
 
 const STORAGE_KEY = "wordle-ultra:save-v1";
 const keyboardRows = [
@@ -17,6 +18,7 @@ const FLIP_DURATION_MS = 660;
 const FLIP_STAGGER_MS = 165;
 let toastTimeout;
 let installPrompt = null;
+let pendingSave = null;
 
 function loadState() {
   const fresh = { version: 1, theme: "dark", serial: 0, bag: [], stats: emptyStats(), round: null };
@@ -56,7 +58,18 @@ function loadState() {
 let state = loadState();
 
 function save() {
+  if (pendingSave !== null) {
+    window.clearTimeout(pendingSave);
+    pendingSave = null;
+  }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+// Don't make synchronous localStorage writes on every touch event. Flush
+// shortly after typing pauses, or immediately when the app is backgrounded.
+function scheduleSave() {
+  if (pendingSave !== null) window.clearTimeout(pendingSave);
+  pendingSave = window.setTimeout(save, 160);
 }
 
 function changeTheme() {
@@ -135,6 +148,7 @@ function handleKey(key) {
     return;
   }
   if (key === "BACKSPACE") {
+    if (!round.current.length) return;
     round.current = round.current.slice(0, -1);
   } else if (key === "ENTER") {
     if (round.current.length !== 5) return toast("需要輸入五個字母");
@@ -159,8 +173,11 @@ function handleKey(key) {
   } else {
     return;
   }
-  save();
-  render();
+  // Crucially, do NOT rebuild 30 tiles, 28 keyboard buttons and the stats
+  // on every letter. On iOS, replacing the pressed button itself causes
+  // noticeable missed-feeling taps and interrupts the native pressed state.
+  updateTypingRow($("board"), round.guesses.length, round.current);
+  scheduleSave();
 }
 
 function renderBoard() {
@@ -205,28 +222,35 @@ function keyboardKnowledge() {
 }
 
 function renderKeyboard() {
-  const known = keyboardKnowledge();
   const keyboard = $("keyboard");
-  keyboard.replaceChildren();
-  for (const rowLetters of keyboardRows) {
-    const row = document.createElement("div");
-    row.className = "keyboard-row";
-    for (const key of rowLetters) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "key" + (key.length > 1 ? " key-wide" : "");
-      b.dataset.key = key;
-      b.dataset.state = known[key] || "unused";
-      if (key === "BACKSPACE") {
-        b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" class="backspace-icon"><path d="M9 4H20a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9L2 12l7-8Z"/><path d="m12 9 6 6m0-6-6 6"/></svg>';
-      } else {
-        b.textContent = key === "ENTER" ? "ENTER" : key;
+  // Build the keyboard once. Preserve the actual button nodes while typing,
+  // submitting guesses and starting new rounds. This also preserves focus.
+  if (!keyboard.children.length) {
+    for (const rowLetters of keyboardRows) {
+      const row = document.createElement("div");
+      row.className = "keyboard-row";
+      for (const key of rowLetters) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "key" + (key.length > 1 ? " key-wide" : "");
+        b.dataset.key = key;
+        if (key === "BACKSPACE") {
+          b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" class="backspace-icon"><path d="M9 4H20a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9L2 12l7-8Z"/><path d="m12 9 6 6m0-6-6 6"/></svg>';
+        } else {
+          b.textContent = key;
+        }
+        b.setAttribute("aria-label", key === "ENTER" ? "送出猜測或進入下一題" :
+          key === "BACKSPACE" ? "刪除字母" : "字母 " + key);
+        row.append(b);
       }
-      b.setAttribute("aria-label", key === "ENTER" ? "送出猜測或進入下一題" :
-        key === "BACKSPACE" ? "刪除字母" : "字母 " + key);
-      row.append(b);
+      keyboard.append(row);
     }
-    keyboard.append(row);
+  }
+  // Update colors in place; never replace the keyboard DOM during a game.
+  const known = keyboardKnowledge();
+  for (const button of keyboard.querySelectorAll("button[data-key]")) {
+    const color = known[button.dataset.key] || "unused";
+    if (button.dataset.state !== color) button.dataset.state = color;
   }
 }
 
@@ -328,6 +352,10 @@ async function shareResult() {
 }
 
 function wireEvents() {
+  window.addEventListener("pagehide", save);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && pendingSave !== null) save();
+  });
   $("keyboard").addEventListener("click", event => {
     const key = event.target.closest("button[data-key]")?.dataset.key;
     if (key) handleKey(key);
