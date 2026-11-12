@@ -12,7 +12,9 @@ const $ = (id) => document.getElementById(id);
 let allowedWords = new Set(ANSWERS);
 let answerPool = ANSWERS;
 let ready = false;
-let lastRevealed = -1;
+let revealing = false;
+const FLIP_DURATION_MS = 660;
+const FLIP_STAGGER_MS = 165;
 let toastTimeout;
 let installPrompt = null;
 
@@ -65,9 +67,10 @@ function changeTheme() {
 
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
-  $("theme-button").textContent = state.theme === "dark" ? "☀" : "☾";
+  $("theme-button").setAttribute("aria-label",
+    state.theme === "dark" ? "切換成淺色主題" : "切換成深色主題");
   document.querySelector('meta[name="theme-color"]').content =
-    state.theme === "dark" ? "#0f172a" : "#f4f6fa";
+    state.theme === "dark" ? "#191a1c" : "#f7f7f5";
 }
 
 function startRound() {
@@ -75,7 +78,6 @@ function startRound() {
   state.bag = selection.bag;
   state.serial += 1;
   state.round = { answer: selection.answer, guesses: [], current: "", status: "playing", serial: state.serial };
-  lastRevealed = -1;
   $("message").textContent = "";
   save();
   render();
@@ -90,8 +92,43 @@ function toast(text) {
   if (navigator.vibrate) navigator.vibrate(12);
 }
 
+// Only one reveal may run at a time. The final result and keyboard clues stay
+// hidden until the whole row has turned over.
+function revealGuess(guess) {
+  const round = state.round;
+  const row = $("board").children[round.guesses.length - 1];
+  const tiles = [...row.children];
+  const clues = scoreGuess(guess, round.answer);
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+  function finish() {
+    revealing = false;
+    renderKeyboard();
+    renderResult();
+    updateStats();
+    const result = round.status === "won" ? "答對了" :
+      round.status === "lost" ? "答案是 " + round.answer.toUpperCase() : "已送出猜測";
+    $("message").textContent = result;
+    if (round.status === "won" || round.status === "lost") toast(result);
+  }
+
+  if (reducedMotion) {
+    clues.forEach((clue, index) => { tiles[index].dataset.state = clue; });
+    finish();
+    return;
+  }
+
+  Promise.all(tiles.map((tile, index) => new Promise(resolve => {
+    window.setTimeout(() => {
+      tile.classList.add("is-flipping");
+      window.setTimeout(() => { tile.dataset.state = clues[index]; }, FLIP_DURATION_MS / 2);
+      window.setTimeout(resolve, FLIP_DURATION_MS);
+    }, index * FLIP_STAGGER_MS);
+  }))).then(finish);
+}
+
 function handleKey(key) {
-  if (!ready || !state.round) return;
+  if (!ready || !state.round || revealing) return;
   const round = state.round;
   if (round.status !== "playing") {
     if (key === "ENTER") startRound();
@@ -99,26 +136,26 @@ function handleKey(key) {
   }
   if (key === "BACKSPACE") {
     round.current = round.current.slice(0, -1);
-    lastRevealed = -1;
   } else if (key === "ENTER") {
     if (round.current.length !== 5) return toast("需要輸入五個字母");
     const guess = round.current;
     if (!allowedWords.has(guess)) return toast("這個單字不在字典中");
     round.guesses.push(guess);
     round.current = "";
-    lastRevealed = round.guesses.length - 1;
     if (guess === round.answer) {
       round.status = "won";
       state.stats = recordResult(state.stats, true, round.guesses.length);
-      toast("猜對了！太棒了 🎉");
     } else if (round.guesses.length === 6) {
       round.status = "lost";
       state.stats = recordResult(state.stats, false);
-      toast("答案是 " + round.answer.toUpperCase());
     }
+    revealing = true;
+    save();
+    render();
+    revealGuess(guess);
+    return;
   } else if (/^[A-Z]$/.test(key) && round.current.length < 5) {
     round.current += key.toLowerCase();
-    lastRevealed = -1;
   } else {
     return;
   }
@@ -137,7 +174,8 @@ function renderBoard() {
     const submitted = rowIndex < round.guesses.length;
     const current = rowIndex === round.guesses.length && round.status === "playing";
     const word = submitted ? round.guesses[rowIndex] : current ? round.current : "";
-    const feedback = submitted ? scoreGuess(word, round.answer) : null;
+    const feedback = submitted && !(revealing && rowIndex === round.guesses.length - 1)
+      ? scoreGuess(word, round.answer) : null;
     row.setAttribute("aria-label", "第 " + (rowIndex + 1) + " 次猜測：" +
       (word || "尚未輸入") + (feedback ? "，" + feedback.map(x =>
         x === "correct" ? "位置正確" : x === "present" ? "位置不對" : "不在答案中").join("、") : ""));
@@ -147,10 +185,6 @@ function renderBoard() {
       tile.setAttribute("role", "gridcell");
       tile.textContent = (word[col] || "").toUpperCase();
       tile.dataset.state = feedback ? feedback[col] : word[col] ? "filled" : "empty";
-      if (feedback && rowIndex === lastRevealed) {
-        tile.classList.add("pop-reveal");
-        tile.style.animationDelay = (col * 90) + "ms";
-      }
       row.append(tile);
     }
     board.append(row);
@@ -159,7 +193,8 @@ function renderBoard() {
 
 function keyboardKnowledge() {
   const known = {};
-  state.round.guesses.forEach(guess => {
+  const submitted = revealing ? state.round.guesses.slice(0, -1) : state.round.guesses;
+  submitted.forEach(guess => {
     const feedback = scoreGuess(guess, state.round.answer);
     for (let i = 0; i < 5; i++) {
       const letter = guess[i].toUpperCase();
@@ -182,7 +217,11 @@ function renderKeyboard() {
       b.className = "key" + (key.length > 1 ? " key-wide" : "");
       b.dataset.key = key;
       b.dataset.state = known[key] || "unused";
-      b.textContent = key === "ENTER" ? "ENTER" : key === "BACKSPACE" ? "⌫" : key;
+      if (key === "BACKSPACE") {
+        b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" class="backspace-icon"><path d="M9 4H20a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9L2 12l7-8Z"/><path d="m12 9 6 6m0-6-6 6"/></svg>';
+      } else {
+        b.textContent = key === "ENTER" ? "ENTER" : key;
+      }
       b.setAttribute("aria-label", key === "ENTER" ? "送出猜測或進入下一題" :
         key === "BACKSPACE" ? "刪除字母" : "字母 " + key);
       row.append(b);
@@ -205,14 +244,14 @@ function renderResult() {
   const round = state.round;
   result.replaceChildren();
   $("round-label").textContent = "ROUND " + round.serial;
-  $("status-note").textContent = round.status === "playing"
+  $("status-note").textContent = revealing ? "揭曉中" : round.status === "playing"
     ? "第 " + (round.guesses.length + 1) + " / 6 次猜測"
-    : round.status === "won" ? "成功解開！" : "這題結束了";
-  $("skip-button").hidden = round.status !== "playing";
-  if (round.status === "playing") {
+    : round.status === "won" ? "成功解開" : "本題結束";
+  $("skip-button").hidden = revealing || round.status !== "playing";
+  if (round.status === "playing" || revealing) {
     const hint = document.createElement("span");
     hint.className = "hint";
-    hint.textContent = "輸入五個字母，按 ENTER 送出";
+    hint.textContent = revealing ? "正在揭曉猜測結果" : "輸入 5 個字母，按 ENTER 送出";
     result.append(hint);
   } else {
     const label = document.createElement("span");
@@ -222,7 +261,7 @@ function renderResult() {
       : "答案是 " + round.answer.toUpperCase();
     result.append(label,
       createButton("分享", "secondary-button", shareResult),
-      createButton("下一題 →", "primary-button", startRound));
+      createButton("下一題", "primary-button", startRound));
   }
 }
 
@@ -304,7 +343,7 @@ function wireEvents() {
     }
   });
   $("skip-button").addEventListener("click", () => {
-    if (ready && state.round.status === "playing") {
+    if (ready && !revealing && state.round.status === "playing") {
       startRound();
       toast("已換成新單字（不計入成績）");
     }

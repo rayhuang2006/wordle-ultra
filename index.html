@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#191a1c">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Wordle Ultra">
@@ -19,13 +19,12 @@
   <div class="app">
     <header class="header">
       <div class="brand">
-        <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-        <div class="brand-text"><span class="eyebrow">UNLIMITED WORD GAME</span><h1>Wordle <em>Ultra</em></h1></div>
+        <div class="brand-text"><h1>Wordle <span class="brand-ultra">ULTRA</span></h1></div>
       </div>
       <div class="header-buttons">
-        <button type="button" class="icon-button" id="help-button" aria-label="遊戲規則" title="遊戲規則">?</button>
-        <button type="button" class="icon-button" id="stats-button" aria-label="統計資料" title="統計資料">▥</button>
-        <button type="button" class="icon-button" id="theme-button" aria-label="切換明暗主題" title="切換主題">☼</button>
+        <button type="button" class="icon-button" id="help-button" aria-label="遊戲規則" title="遊戲規則"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.7 2.7 0 0 1 5.2 1c0 2-2.7 2.2-2.7 4"/><path d="M12 17.5h.01"/></svg></button>
+        <button type="button" class="icon-button" id="stats-button" aria-label="統計資料" title="統計資料"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V12M10 20V8M15 20V4M20 20V14"/></svg></button>
+        <button type="button" class="icon-button" id="theme-button" aria-label="切換明暗主題" title="切換主題"><span class="icon-sun"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></span><span class="icon-moon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 15.7A8.6 8.6 0 0 1 8.3 3.8 8.6 8.6 0 1 0 20.2 15.7Z"/></svg></span></button>
       </div>
     </header>
 
@@ -33,7 +32,7 @@
       <div class="status-line">
         <span class="round-pill" id="round-label">ROUND 1</span>
         <span class="status-note" id="status-note">每題 6 次機會</span>
-        <button type="button" id="skip-button" class="skip-button">換個單字 ↗</button>
+        <button type="button" id="skip-button" class="skip-button">換一題 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
       </div>
       <div class="board-shell">
         <div class="board" id="board" role="grid" aria-label="六次猜測，每次五個字母"></div>
@@ -46,13 +45,13 @@
 
     <section class="keyboard" id="keyboard" aria-label="遊戲鍵盤"></section>
     <footer class="footer">
-      <span><span class="online-dot" aria-hidden="true"></span> 無限開局 · 可離線遊玩</span>
-      <button type="button" id="install-button">加入主畫面 <span aria-hidden="true">↗</span></button>
+      <span>無限猜字 · 支援離線</span>
+      <button type="button" id="install-button"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 14v6h16v-6"/></svg> 加入主畫面</button>
     </footer>
   </div>
 
   <dialog class="modal" id="help-dialog" aria-labelledby="help-title">
-    <div class="modal-header"><h2 id="help-title">怎麼玩？</h2><button class="modal-close" data-close="help-dialog" aria-label="關閉">×</button></div>
+    <div class="modal-header"><h2 id="help-title">怎麼玩？</h2><button class="modal-close" data-close="help-dialog" aria-label="關閉"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
     <p>每一題都有一個<strong>五個英文字母</strong>的答案。你有 <strong>6 次</strong>猜測機會，顏色會告訴你線索。</p>
     <div class="example"><span class="sample correct">W</span><span class="sample">E</span><span class="sample">A</span><span class="sample">R</span><span class="sample">Y</span></div>
     <p><strong>綠色</strong>：字母與位置都正確。</p>
@@ -60,13 +59,13 @@
     <p><strong>黃色</strong>：答案有這個字母，但位置不同。</p>
     <div class="example"><span class="sample">V</span><span class="sample">A</span><span class="sample absent">G</span><span class="sample">U</span><span class="sample">E</span></div>
     <p><strong>灰色</strong>：這個字母未被答案使用，或出現次數已用完。</p>
-    <p class="muted">不限一天一題！答對、失敗，或按「換個單字」，都能接著玩。進度只存在此裝置。</p>
+    <p class="muted">不限一天一題！答對、失敗，或按「換一題」，都能接著玩。進度只存在此裝置。</p>
     <h3>安裝到手機</h3>
     <p><strong>iPhone：</strong>在 Safari 點「分享」→「加入主畫面」。<br><strong>Android：</strong>在 Chrome 選單中選「安裝應用程式」或「加入主畫面」。</p>
   </dialog>
 
   <dialog class="modal" id="stats-dialog" aria-labelledby="stats-title">
-    <div class="modal-header"><h2 id="stats-title">遊戲統計</h2><button class="modal-close" data-close="stats-dialog" aria-label="關閉">×</button></div>
+    <div class="modal-header"><h2 id="stats-title">遊戲統計</h2><button class="modal-close" data-close="stats-dialog" aria-label="關閉"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
     <div class="stats-grid">
       <div><strong id="stat-played">0</strong><span>完成場數</span></div>
       <div><strong id="stat-winrate">0%</strong><span>勝率</span></div>
