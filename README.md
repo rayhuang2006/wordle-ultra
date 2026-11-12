@@ -30,7 +30,7 @@ No npm install required. Serve this directory over localhost (not file://):
 
 Visit http://localhost:8000/. Run the logic tests using Node.js:
 
-    node --test tests/logic.test.mjs
+    node --test tests/*.test.mjs
 
 ## Privacy and data
 

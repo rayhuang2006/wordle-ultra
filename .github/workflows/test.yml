@@ -17,4 +17,4 @@ jobs:
           node --check app.js
           node --check logic.mjs
           node --check sw.js
-          node --test tests/logic.test.mjs
+          node --test tests/*.test.mjs
